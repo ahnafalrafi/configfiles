@@ -84,7 +84,7 @@ can be run by calling ~make~ from the terminal in the current directory.
 Note that these are strict dependencies --- the ~make~ call will fail if they
 have not been created.
 
-* The ~early-init.el~ file
+* The early init file
 :PROPERTIES:
 :header-args:emacs-lisp: :tangle early-init.el
 :END:
@@ -95,15 +95,34 @@ I use it mainly to disable some elements before they are loaded and defer things
 like garbage collection.
 In this section, every code block gets tangled to the ~early-init.el~ file.
 
-** Header
+** Header and footer
 
-I put headers of this sort in both ~early-init.el~ and ~init.el~ in keeping with
-convention.
+I put headers in all ~elisp~ files (extension ~.el~) in keeping
+with convention.
+The purpose is to state the name of the file and set ~lexical-binding~ to ~t~
+locally.
+The latter has some optimization benefit.
+This source block sets up the header for ~early-init.el~.
 #+begin_src emacs-lisp
 ;;; early-init.el --- -*- lexical-binding: t; -*-
 
 ;;; Code:
 #+end_src
+
+Each ~.el~ file will also have a footer at the end marking it as a library than
+can be passed to the ~require~ function.
+The footer for ~early-init.el~ is the following.
+#+name: early-init-footer
+#+cutom-id: early-init-footer
+#+begin_src emacs-lisp :tangle no
+(provide 'early-init)
+;;; early-init.el ends here
+#+end_src
+This block is not tangled immediately, since we are not yet at the end of
+~early-init.el~.
+Instead, it is marked as a named block, with the name ~early-init-footer~.
+A source block in [[Footer for the early init file][a later subsection]] will
+tangle it at the end of ~early-init.el~ using ~noweb~ syntax.
 
 ** Disabling some GUI elements
 
@@ -246,12 +265,11 @@ hurt.
             gcs-done)))
 #+end_src
 
-** Footer
+** Footer for the early init file
 
-Finally, a footer for the early init file to mark its end.
-#+begin_src emacs-lisp
-(provide 'early-init)
-;;; early-init.el ends here
+Here, the [[early-init-footer][~<<early-init-footer>>~]] is deployed.
+#+begin_src emacs-lisp :noweb yes
+<<early-init-footer>>
 #+end_src
 
 # Local Variables:
