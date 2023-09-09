@@ -3,6 +3,7 @@
 #+property: header-args:emacs-lisp  :tangle init.el
 
 * Local variables
+
 The end of this file has the following comment block.
 #+begin_src org :tangle no
 # Local Variables:
@@ -13,7 +14,8 @@ This hook is local to current file and ensures that upon saving changes,
 any code blocks without a ~:tangle no~ flag gets written to a file with the
 relevant extension.
 At the beginning of this file, there is a header comment setting the following
-property for all Emacs Lisp code blocks.
+property for all Emacs Lisp (referred to as either ~elisp~ or ~emacs-lisp~) code
+blocks.
 #+begin_src org
 #+property: header-args:emacs-lisp  :tangle init.el
 #+end_src
@@ -21,6 +23,236 @@ This means that any Emacs Lisp code block gets tangled to ~init.el~ unless told
 otherwise.
 Some code blocks in this file will be asked to tangle out to some other file,
 for example with a ~:tangle early-init.el~ argument.
+
+* A ~makefile~ for linking directories and source files
+:PROPERTIES:
+:header-args:makefile: :tangle makefile
+:END:
+
+All source blocks tangled from this org file produce source files in the same
+directory.
+This is by design.
+I prefer to create symbolic links (symlinks) to the relevant system folders
+myself.
+This section deals with setting up a makefile containing all the instructions
+for symlinks.
+All source blocks here are tangled into the file called ~makefile~ in the
+current directory.
+
+To point to the right location, the ~makefile~ needs to be told where the
+tangled source files will be.
+#+begin_src makefile
+CWD = $(shell pwd)
+#+end_src
+
+The user's configuration for Emacs lives in ~~/.emacs.d~ directory by default.
+The ~test-emacsdir~ target below checks to see if ~~/.emacs.d~ exists, and
+creates the it if it does not.
+The targets afterwards all create the required symlinks.
+When a file or directory needs to be checked for or created, it does so.
+#+begin_src makefile
+all: test-emacsdir early-init init custom snippetsdir
+
+test-emacsdir:
+	@echo "Checking to see if ~/.emacs.d exists. It will be created if not."
+	@test -d ~/.emacs.d || mkdir ~/.emacs.d
+
+early-init: early-init.el
+	@ln -sf $(CWD)/early-init.el ~/.emacs.d/early-init.el
+	@echo "Created symlink to ./early-init.el in ~/.emacs.d/early-init.el."
+
+init: init.el
+	@ln -sf $(CWD)/init.el ~/.emacs.d/init.el
+	@echo "Created symlink to ./init.el in ~/.emacs.d/init.el."
+
+custom:
+	@echo "Checking to see if ./custom.el exists. It will be created if not."
+	@test -f $(CWD)/custom.el || touch $(CWD)/custom.el
+	@ln -sf $(CWD)/custom.el ~/.emacs.d/custom.el
+	@echo "Created symlink to ./custom.el in ~/.emacs.d/custom.el."
+
+snippetsdir:
+	@echo "Checking to see if ./snippets exists. It will be created if not."
+	@test -d $(CWD)/snippets || mkdir $(CWD)/snippets
+	@rm -rf ~/.emacs.d/snippets
+	@echo "Removed ~/.emacs.d/snippets if it existed."
+	@ln -sf $(CWD)/snippets ~/.emacs.d/snippets
+	@echo "Created symlink to ./snippets in ~/.emacs.d/snippets."
+#+end_src
+Once the ~early-init.el~ and ~init.el~ files have been tangled, the ~makefile~
+can be run by calling ~make~ from the terminal in the current directory.
+Note that these are strict dependencies --- the ~make~ call will fail if they
+have not been created.
+
+* The ~early-init.el~ file
+:PROPERTIES:
+:header-args:emacs-lisp: :tangle early-init.el
+:END:
+
+The ~early-init.el~ file is the first user file that Emacs loads, and does so
+before it loads its graphical user interface (GUI).
+I use it mainly to disable some elements before they are loaded and defer things
+like garbage collection.
+In this section, every code block gets tangled to the ~early-init.el~ file.
+
+** Header
+
+I put headers of this sort in both ~early-init.el~ and ~init.el~ in keeping with
+convention.
+#+begin_src emacs-lisp
+;;; early-init.el --- -*- lexical-binding: t; -*-
+
+;;; Code:
+#+end_src
+
+** Disabling some GUI elements
+
+I do not use the menu bar, tool bar or scroll bar.
+#+begin_src emacs-lisp
+(menu-bar-mode -1)
+(tool-bar-mode -1)
+(scroll-bar-mode -1)
+#+end_src
+
+I am not a fan of the default splash screen.
+Let's strip away everything we can from it.
+#+begin_src emacs-lisp
+;; Get rid of splash screen
+(setq inhibit-splash-screen t)
+(setq inhibit-startup-echo-area-message user-login-name) ;; read the docstring
+(setq inhibit-startup-screen t)
+(setq inhibit-startup-buffer-menu nil)
+(setq initial-scratch-message nil)
+(advice-add #'display-startup-echo-area-message :override #'ignore)
+#+end_src
+
+** Defer garbage collection and some other minor optimization
+
+Emacs has a built in package manager, ~package.el~, and loads it once the GUI is
+initialized.
+I do not use it and prefer ~straight.el~ for package management.
+Let's tell Emacs to not bother loading ~package.el~.
+#+begin_src emacs-lisp
+;; Use straight.el for package management.
+(setq package-enable-at-startup nil)
+#+end_src
+
+Emacs has a low threshold set for garbage collection (800,000 bytes by default).
+This tends to slow Emacs down, and so I raise it to a more reasonable threshold
+of 50MB.
+#+begin_src emacs-lisp
+(setq gc-cons-threshold (* 50 1024 1024))
+#+end_src
+
+This next tweak helps minor speedups when dealing with things like language
+servers using ~eglot~.
+#+begin_src emacs-lisp
+(setq read-process-output-max (* 1024 1024)) ;; 1mb
+#+end_src
+
+Let's also tell Emacs not to resize the frame at this early stage.
+I usually make the first Emacs frame full screen anyway.
+#+begin_src emacs-lisp
+(setq frame-inhibit-implied-resize t)
+#+end_src
+
+** Some early UI tweaks
+
+Every so often, Emacs will prompt you for a 'yes/no' reply, but will expect
+either 'yes' or 'no' to be typed out, followed by a return (enter key).
+A 'y/n' is enough.
+#+begin_src emacs-lisp
+;; yes/no to y/n
+(fset 'yes-or-no-p 'y-or-n-p)
+#+end_src
+
+I use Emacs with native compilation of ~elisp~ files.
+By default, Emacs likes to report a bunch of warnings when compiling these.
+I don't find these useful and disable them here.
+#+begin_src emacs-lisp
+;; Native Compilation warnings are really annoying. Let's suppress them.
+(setq native-comp-async-report-warnings-errors nil)
+(when (eq system-type 'darwin)
+  (setq native-comp-driver-options '("-Wl,-w")))
+#+end_src
+
+I don't have a reason to store duplicate entries in the clipboard (or the
+'kill-ring' in Emacs-speak).
+#+begin_src emacs-lisp
+;; Clipboard/kill-ring --- do not keep duplicates.
+(setq kill-do-not-save-duplicates t)
+#+end_src
+
+During a normal editing session, Emacs gives a warning signal quite often.
+The beeping signal is annoying, so I disable it.
+#+begin_src emacs-lisp
+;; Disable the alarm bell
+(setq ring-bell-function 'ignore)
+#+end_src
+
+I try to limit my use of the mouse, so these are unnecessary.
+#+begin_src emacs-lisp
+;; For mouse events
+(setq use-dialog-box nil)
+(setq use-file-dialog nil)
+#+end_src
+
+** Auto-saves, backups and lockfiles
+
+I do not use backup files or lockfiles, and disable them here.
+#+begin_src emacs-lisp
+;; Disable backups and lockfiles
+(setq make-backup-files nil)
+(setq create-lockfiles nil)
+#+end_src
+
+I do keep auto-saves of files.
+The folder containing these is specified by ~auto-save-list-file-prefix~;
+this defaults to ~"~/.emacs.d/auto-save-list/.saves-"~.
+#+begin_src emacs-lisp
+;; Enable auto-saves
+(setq auto-save-default t)
+#+end_src
+
+I use ~tramp~ for opening files and navigating directories via ~ssh~.
+The transformation applied to files accessed through ~tramp~ when auto-saving
+needs to be adjusted.
+The following snippet does this by adding "tramp-" to the file name when
+auto-saving.
+#+begin_src emacs-lisp
+;; Auto-save transforms
+(setq auto-save-file-name-transforms
+      (list (list "\\`/[^/]*:\\([^/]*/\\)*\\([^/]*\\)\\'"
+                  ; Prefix tramp auto-saves to prevent conflicts
+                  (concat auto-save-list-file-prefix "tramp-\\2") t)
+            (list ".*" auto-save-list-file-prefix t)))
+#+end_src
+
+** Profile startup time
+
+I like to have an indication of startup time and garbage collection in the echo
+area.
+Once installed,
+[[https://github.com/emacs-dashboard/emacs-dashboard][~emacs-dashboard~]]
+will report startup time as well, but an additional basic implementation doesn't
+hurt.
+#+begin_src emacs-lisp
+;; Profile Emacs startup time and amount of garbage collection.
+(add-hook
+ 'emacs-startup-hook
+ (lambda ()
+   (message "*** Emacs loaded in %s seconds with %d garbage collections."
+            (emacs-init-time "%.2f")
+            gcs-done)))
+#+end_src
+
+** Footer
+
+Finally, a footer for the early init file to mark its end.
+#+begin_src emacs-lisp
+(provide 'early-init)
+;;; early-init.el ends here
+#+end_src
 
 # Local Variables:
 # eval: (add-hook 'after-save-hook #'org-babel-tangle nil t)
