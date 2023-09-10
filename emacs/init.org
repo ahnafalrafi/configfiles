@@ -22,191 +22,98 @@ If you are viewing ~init.org~ on GitHub, the comment is visible at the bottom of
 the raw file.
 
 * The early init file
-:PROPERTIES:
-:header-args:emacs-lisp: :tangle early-init.el
-:END:
 
+Every code block in this section gets tangled to the ~early-init.el~ file.
 The ~early-init.el~ file is the first user file that Emacs loads, and does so
 before it loads its graphical user interface (GUI).
-I use it mainly to disable some elements before they are loaded and defer things
-like garbage collection.
-In this section, every code block gets tangled to the ~early-init.el~ file.
-
-** Header and footer
-
-I put headers in all ~elisp~ files (extension ~.el~) in keeping
-with convention.
-The purpose is to state the name of the file and set ~lexical-binding~ to ~t~
-locally.
-The latter has some optimization benefit.
-This source block sets up the header for ~early-init.el~.
-#+begin_src emacs-lisp
+I use it mainly to disable some GUI elements before they are loaded and defer
+things like garbage collection.
+Comments in the source block explain the code.
+#+begin_src emacs-lisp :tangle early-init.el
 ;;; early-init.el --- -*- lexical-binding: t; -*-
 
 ;;; Code:
-#+end_src
 
-Each ~.el~ file will also have a footer at the end marking it as a library than
-can be passed to the ~require~ function.
-The footer for ~early-init.el~ is the following.
-#+name: early-init-footer
-#+cutom-id: early-init-footer
-#+begin_src emacs-lisp :tangle no
-(provide 'early-init)
-;;; early-init.el ends here
-#+end_src
-This block is not tangled immediately, since we are not yet at the end of
-~early-init.el~.
-Instead, it is marked as a named block, with the name ~early-init-footer~.
-A source block in [[Footer for the early init file][a later subsection]] will
-tangle it at the end of ~early-init.el~ using ~noweb~ syntax.
-
-** Disabling some GUI elements
-
-I do not use the menu bar, tool bar or scroll bar.
-#+begin_src emacs-lisp
+;; Disable GUI elements I don't use.
 (menu-bar-mode -1)
 (tool-bar-mode -1)
 (scroll-bar-mode -1)
-#+end_src
 
-I am not a fan of the default splash screen.
-Let's strip away everything we can from it.
-#+begin_src emacs-lisp
-;; Get rid of splash screen
+;; Get rid of splash screen.
 (setq inhibit-splash-screen t)
-(setq inhibit-startup-echo-area-message user-login-name) ;; read the docstring
+(setq inhibit-startup-echo-area-message user-login-name) ;; Read docstring.
 (setq inhibit-startup-screen t)
 (setq inhibit-startup-buffer-menu nil)
 (setq initial-scratch-message nil)
 (advice-add #'display-startup-echo-area-message :override #'ignore)
-#+end_src
 
-** Defer garbage collection and some other minor optimization
+;; Increase garbage collection threshold - has some performance benefit.
+(setq gc-cons-threshold (* 50 1024 1024)) ;; 50mb
 
-Emacs has a built in package manager, ~package.el~, and loads it once the GUI is
-initialized.
-I do not use it and prefer ~straight.el~ for package management.
-Let's tell Emacs to not bother loading ~package.el~.
-#+begin_src emacs-lisp
-;; Use straight.el for package management.
-(setq package-enable-at-startup nil)
-#+end_src
-
-Emacs has a low threshold set for garbage collection (800,000 bytes by default).
-This tends to slow Emacs down, and so I raise it to a more reasonable threshold
-of 50MB.
-#+begin_src emacs-lisp
-(setq gc-cons-threshold (* 50 1024 1024))
-#+end_src
-
-This next tweak helps minor speedups when dealing with things like language
-servers using ~eglot~.
-#+begin_src emacs-lisp
+;; Useful for dealing with language servers using eglot.
 (setq read-process-output-max (* 1024 1024)) ;; 1mb
-#+end_src
 
-Let's also tell Emacs not to resize the frame at this early stage.
-I usually make the first Emacs frame full screen anyway.
-#+begin_src emacs-lisp
+;; Inhibit frame resize - has some performance benefit.
 (setq frame-inhibit-implied-resize t)
-#+end_src
 
-** Some early UI tweaks
-
-Every so often, Emacs will prompt you for a 'yes/no' reply, but will expect
-either 'yes' or 'no' to be typed out, followed by a return (enter key).
-A 'y/n' is enough.
-#+begin_src emacs-lisp
-;; yes/no to y/n
+;; Use y/n responses to yes/no prompts.
 (fset 'yes-or-no-p 'y-or-n-p)
-#+end_src
 
-I use Emacs with native compilation of ~elisp~ files.
-By default, Emacs likes to report a bunch of warnings when compiling these.
-I don't find these useful and disable them here.
-#+begin_src emacs-lisp
-;; Native Compilation warnings are really annoying. Let's suppress them.
+;; Suppress annoying native compilation warnings.
 (setq native-comp-async-report-warnings-errors nil)
+
+;; Set driver options for native compilation if using MacOS.
 (when (eq system-type 'darwin)
   (setq native-comp-driver-options '("-Wl,-w")))
+
+(provide 'early-init)
+;;; early-init.el ends here
 #+end_src
 
-I don't have a reason to store duplicate entries in the clipboard (or the
-'kill-ring' in Emacs-speak).
+* Main init file: header and footer
+
+Henceforth, any ~elisp~ code blocks that get tangled go into ~init.el~.
+When a block is not tangled, I will say so.
+The first few lines of ~init.el~ will be a standard header.
 #+begin_src emacs-lisp
-;; Clipboard/kill-ring --- do not keep duplicates.
-(setq kill-do-not-save-duplicates t)
-#+end_src
+;;; init.el --- -*- lexical-binding: t; -*-
 
-During a normal editing session, Emacs gives a warning signal quite often.
-The beeping signal is annoying, so I disable it.
+;;; Code:
+#+end_src
+The end of ~init.el~ will contain the following footer, similar to
+~early-init.el~.
+This block is not tangled immediately, but is called in
+[[Footer for init.el][the last subsection]] using a ~noweb~ call to
+~<<init-footer>>~ much like in ~early-init.el~.
+#+name: init-footer
+#+cutom-id: init-footer
+#+BEGIN_SRC emacs-lisp :tangle no
+(provide 'init)
+;;; init.el ends here
+#+END_SRC
+
+* Personal details
+
+Let's tell Emacs who I am and my email.
 #+begin_src emacs-lisp
-;; Disable the alarm bell
-(setq ring-bell-function 'ignore)
+(setq user-full-name "Ahnaf Rafi")
+(setq user-mail-address "ahnaf.al.rafi@gmail.com")
 #+end_src
 
-I try to limit my use of the mouse, so these are unnecessary.
+* The custom file
+
 #+begin_src emacs-lisp
-;; For mouse events
-(setq use-dialog-box nil)
-(setq use-file-dialog nil)
+;; Set file for custom.el to use
+(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
+
+(load custom-file 'noerror 'nomessage)
 #+end_src
 
-** Auto-saves, backups and lockfiles
+* Footer for init file
 
-I do not use backup files or lockfiles, and disable them here.
-#+begin_src emacs-lisp
-;; Disable backups and lockfiles
-(setq make-backup-files nil)
-(setq create-lockfiles nil)
-#+end_src
-
-I do keep auto-saves of files.
-The folder containing these is specified by ~auto-save-list-file-prefix~;
-this defaults to ~"~/.emacs.d/auto-save-list/.saves-"~.
-#+begin_src emacs-lisp
-;; Enable auto-saves
-(setq auto-save-default t)
-#+end_src
-
-I use ~tramp~ for opening files and navigating directories via ~ssh~.
-The transformation applied to files accessed through ~tramp~ when auto-saving
-needs to be adjusted.
-The following snippet does this by adding "tramp-" to the file name when
-auto-saving.
-#+begin_src emacs-lisp
-;; Auto-save transforms
-(setq auto-save-file-name-transforms
-      (list (list "\\`/[^/]*:\\([^/]*/\\)*\\([^/]*\\)\\'"
-                  ; Prefix tramp auto-saves to prevent conflicts
-                  (concat auto-save-list-file-prefix "tramp-\\2") t)
-            (list ".*" auto-save-list-file-prefix t)))
-#+end_src
-
-** Profile startup time
-
-I like to have an indication of startup time and garbage collection in the echo
-area.
-Once installed,
-[[https://github.com/emacs-dashboard/emacs-dashboard][~emacs-dashboard~]]
-will report startup time as well, but an additional basic implementation doesn't
-hurt.
-#+begin_src emacs-lisp
-;; Profile Emacs startup time and amount of garbage collection.
-(add-hook
- 'emacs-startup-hook
- (lambda ()
-   (message "*** Emacs loaded in %s seconds with %d garbage collections."
-            (emacs-init-time "%.2f")
-            gcs-done)))
-#+end_src
-
-** Footer for the early init file
-
-Here, the [[early-init-footer][~<<early-init-footer>>~]] is deployed.
+Here, the [[init-footer][~<<init-footer>>~]] is deployed.
 #+begin_src emacs-lisp :noweb yes
-<<early-init-footer>>
+<<init-footer>>
 #+end_src
 
 # Local Variables:
