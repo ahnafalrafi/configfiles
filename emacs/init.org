@@ -70,51 +70,65 @@ Comments in the source block explain the code.
 ;;; early-init.el ends here
 #+end_src
 
-* Main init file: header and footer
+* Main init file: header and some basics
 
-Henceforth, any ~elisp~ code blocks that get tangled go into ~init.el~.
+Henceforth, any tangled ~elisp~ code blocks goes into ~init.el~.
 When a block is not tangled, I will say so.
-The first few lines of ~init.el~ will be a standard header.
+Here are the first few lines of ~init.el~.
 #+begin_src emacs-lisp
 ;;; init.el --- -*- lexical-binding: t; -*-
 
 ;;; Code:
-#+end_src
-The end of ~init.el~ will contain the following footer, similar to
-~early-init.el~.
-This block is not tangled immediately, but is called in
-[[Footer for init.el][the last subsection]] using a ~noweb~ call to
-~<<init-footer>>~ much like in ~early-init.el~.
-#+name: init-footer
-#+cutom-id: init-footer
-#+BEGIN_SRC emacs-lisp :tangle no
-(provide 'init)
-;;; init.el ends here
-#+END_SRC
 
-* Personal details
-
-Let's tell Emacs who I am and my email.
-#+begin_src emacs-lisp
+;; Name and email.
 (setq user-full-name "Ahnaf Rafi")
 (setq user-mail-address "ahnaf.al.rafi@gmail.com")
+
+;; Set file for custom.el to use --- I use this for temporary customizations.
+(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
+;; Load the custom file.
+(load custom-file 'noerror 'nomessage)
+
+;; Add user lisp directory to load path.
+(add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
 #+end_src
 
-* The custom file
+* Package management
 
+I use the built-in package manager, ~package.el~.
+~package.el~ needs to be made aware of any additional repositories to pull from.
+Many of the packages I use come from MELPA, so lets add its URL to
+~package-archives~.
 #+begin_src emacs-lisp
-;; Set file for custom.el to use
-(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
+(add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/"))
 
-(load custom-file 'noerror 'nomessage)
+(unless package-archive-contents
+  (package-refresh-contents))
+#+end_src
+
+I use ~use-package~ for installing and managing package configuration.
+In recent Emacs versions (>= 29), ~use-package~ is included by default.
+This block makes sure ~use-package~ gets installed if it is missing.
+#+begin_src emacs-lisp
+;; Initialize use-package on non-Linux platforms
+(unless (package-installed-p 'use-package)
+  (package-install 'use-package))
+#+end_src
+
+~use-package~ can install missing packages for you, but will not do so by
+default.
+The following code block makes installation of missing packages default
+behavior.
+#+begin_src emacs-lisp
+(setq use-package-always-ensure t)
 #+end_src
 
 * Footer for init file
 
-Here, the [[init-footer][~<<init-footer>>~]] is deployed.
-#+begin_src emacs-lisp :noweb yes
-<<init-footer>>
-#+end_src
+#+BEGIN_SRC emacs-lisp :tangle no
+(provide 'init)
+;;; init.el ends here
+#+END_SRC
 
 # Local Variables:
 # eval: (add-hook 'after-save-hook #'org-babel-tangle nil t)
