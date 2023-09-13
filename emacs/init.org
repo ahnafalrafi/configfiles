@@ -5,11 +5,12 @@
 
 * How this configuration works.
 
-All Emacs Lisp (~elisp~) source code blocks in this file (~init.org~) get
-written (or tangled in ~org~-speak) to certain source files whenever ~init.org~
-is changed and saved.
-These source files are symlinked to ~~/.emacs.d~. See the ~makefile~ in the
-directory containing ~init.org~.
+Emacs Lisp (~elisp~) source code blocks in this file, ~init.org~, get
+written (or tangled in ~org~-speak) to ~early-init.el~ or ~init.el~ when
+~init.org~ is changed and saved.
+These source files are symlinked to ~~/.emacs.d~, where Emacs looks for user
+configuration files.
+See the ~makefile~ in the directory containing ~init.org~.
 Running ~make~ from the command line does all the necessary symlinking work.
 The automatic tangling is done using a local hook;
 the end of ~init.org~ has the following comment block:
@@ -25,9 +26,9 @@ the raw file.
 
 Every code block in this section gets tangled to the ~early-init.el~ file.
 The ~early-init.el~ file is the first user file that Emacs loads, and does so
-before it loads its graphical user interface (GUI).
-I use it mainly to disable some GUI elements before they are loaded and defer
-things like garbage collection.
+before Emacs loads its graphical user interface (GUI).
+I use ~early-init.el~ mainly to disable some GUI elements before they are loaded
+and defer things like garbage collection.
 Comments in the source block explain the code.
 #+begin_src emacs-lisp :tangle early-init.el
 ;;; early-init.el --- -*- lexical-binding: t; -*-
@@ -96,9 +97,8 @@ Here are the first few lines of ~init.el~.
 * Package management
 
 I use the built-in package manager, ~package.el~.
-~package.el~ needs to be made aware of any additional repositories to pull from.
-Many of the packages I use come from MELPA, so lets add its URL to
-~package-archives~.
+The following block adds the MELPA URL to ~package-archives~,
+which is where many of the I use come from.
 #+begin_src emacs-lisp
 (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/"))
 
@@ -106,21 +106,48 @@ Many of the packages I use come from MELPA, so lets add its URL to
   (package-refresh-contents))
 #+end_src
 
-I use ~use-package~ for installing and managing package configuration.
+I use [[https://github.com/jwiegley/use-package][~use-package~]] for installing
+and managing package configuration.
 In recent Emacs versions (>= 29), ~use-package~ is included by default.
 This block makes sure ~use-package~ gets installed if it is missing.
 #+begin_src emacs-lisp
-;; Initialize use-package on non-Linux platforms
+;; Install use-package if not present.
 (unless (package-installed-p 'use-package)
   (package-install 'use-package))
 #+end_src
 
 ~use-package~ can install missing packages for you, but will not do so by
 default.
-The following code block makes installation of missing packages default
-behavior.
+The following block makes installation of missing packages default behavior.
 #+begin_src emacs-lisp
 (setq use-package-always-ensure t)
+#+end_src
+
+* TEMP STUFF
+#+begin_src elisp
+;; Clipboard/kill-ring --- do not keep duplicates.
+(setq kill-do-not-save-duplicates t)
+
+;; Disable the alarm bell
+(setq ring-bell-function 'ignore)
+
+;; For mouse events
+(setq use-dialog-box nil)
+(setq use-file-dialog nil)
+
+;; Disable backups and lockfiles
+(setq make-backup-files nil)
+(setq create-lockfiles nil)
+
+;; Enable auto-saves
+(setq auto-save-default t)
+
+;; Auto-save transforms
+(setq auto-save-file-name-transforms
+      (list (list "\\`/[^/]*:\\([^/]*/\\)*\\([^/]*\\)\\'"
+                  ; Prefix tramp auto-saves to prevent conflicts
+                  (concat auto-save-list-file-prefix "tramp-\\2") t)
+            (list ".*" auto-save-list-file-prefix t)))
 #+end_src
 
 * Footer for init file

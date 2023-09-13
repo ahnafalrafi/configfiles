@@ -19,7 +19,7 @@
 (unless package-archive-contents
   (package-refresh-contents))
 
-;; Initialize use-package on non-Linux platforms
+;; Install use-package if not present.
 (unless (package-installed-p 'use-package)
   (package-install 'use-package))
 
