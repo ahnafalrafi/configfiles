@@ -8,7 +8,7 @@
 Emacs Lisp (~elisp~) source code blocks in this file, ~init.org~, get
 written (or tangled in ~org~-speak) to ~early-init.el~ or ~init.el~ when
 ~init.org~ is changed and saved.
-These source files are symlinked to ~\~/.emacs.d~, where Emacs looks for user
+These source files are symlinked to ~$HOME/.emacs.d~, where Emacs looks for user
 configuration files.
 See the ~makefile~ in the directory containing ~init.org~.
 Running ~make~ from the command line does all the necessary symlinking work.
